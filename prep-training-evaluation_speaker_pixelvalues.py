@@ -1,21 +1,19 @@
+# Importin modules
 import numpy as np
 import pandas as pd
 import pickle
 import argparse
 import time
 import json
-#k-kold
 import torch
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.class_weight import compute_class_weight
-#training
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-#analysis
 from sklearn.metrics import f1_score
 
-# argparse constructor
+# Argparse constructor
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--data", required=True,
 	help = "path to the dataset file")
@@ -23,11 +21,10 @@ parser.add_argument("-l", "--label", required=True,
 	help = "type of label to be used (LABEL or ACTIVATION or VALENCE")
 args = vars(parser.parse_args())
 
-#loading the pandas dataset
+# Loading the pandas dataset
 df = pd.read_pickle(args["data"])
 
-#converting continuous labels (activation/valence) into classes
-# returns floats while L returns int (doesn't matter torch.LongTensor unifys to int-like type)
+# Converting continuous labels (activation/valence) into classes
 def map_to_bin(cont_label):
 	if cont_label <= 2.5:  # orig. 2.0
 		return 0.0
@@ -40,20 +37,19 @@ for i in enumerate(df.index):
 	df.at[i[1], 'ACTIVATION'] = map_to_bin(df['ACTIVATION'][i[0]])
 	df.at[i[1], 'VALENCE'] = map_to_bin(df['VALENCE'][i[0]])
 
-#converting labels (emotions) into classes
-# returns int while A/V returns float (doesn't matter torch.LongTensor unifys to int-like type)
+# Converting emotion labels into classes
 df["LABEL"].replace({'anger': 0, 'happiness': 1, 'neutral': 2, 'sadness': 3}, inplace=True)
 
-#splitting data according to the 6 original sessions (given the speaker id)
+# Splitting data according to the 6 original sessions (given the speaker id)
 def create_sessions(df):
-	#features
+	# features
 	f_1 = []
 	f_2 = []
 	f_3 = []
 	f_4 = []
 	f_5 = []
 	f_6 = []
-	#labels (category/activation/valnece depending on the parsed argument)
+	# labels (category/activation/valnece depending on the parsed argument)
 	l_1 = []
 	l_2 = []
 	l_3 = []
@@ -62,7 +58,7 @@ def create_sessions(df):
 	l_6 = []
 	
 	for i in df.index:
-		session = i[17:19] #session nr
+		session = i[17:19] #contains session nr
 		if session == "01":
 			f_1.append(df.loc[i,"FEATURES"])
 			l_1.append(df.loc[i,args["label"]])
@@ -88,10 +84,9 @@ def create_sessions(df):
 
 f, l = create_sessions(df)
 
-#SUPPORT FUNCTIONS FOR THE K-FOLD-SPLIT (SESSION-WISE-SPLIT)
+# SUPPORT FUNCTIONS FOR THE K-FOLD-SPLIT (SESSION-WISE-SPLIT)
 
-#standardization (requires an np.array as input)
-#CORRECT VERSION mean is 0 and std is 1
+# Standardization (requires an np.array as input)
 def standardize(features, mean, std):
 	start_time = time.time()
 	features = (features - mean) / (std + 0.0000001) # adding epsilon to avoid errors (e.g. division by 0)
@@ -103,12 +98,10 @@ def standardize(features, mean, std):
 	end_time = time.time()
 	duration = end_time - start_time
 	print(f'standardizing took {duration} seconds')
-	#print(features.shape)
 
 	return torch.Tensor(features)
 
-#splitting validation set into dev and test
-#The least populated class needs to have AT LEAST 2 MEMBERS
+# Splitting validation set into dev and test (least populated class needs to have AT LEAST 2 MEMBERS)
 def SSS(X_val, y_val):
 	sss = StratifiedShuffleSplit(n_splits=1, test_size=0.5)
 	sss.get_n_splits(X_val, y_val)
@@ -118,20 +111,19 @@ def SSS(X_val, y_val):
 
 		return X_dev, X_final_test, y_dev, y_final_test
 
-#MODEL + SUPPORT FUNCTIONS FOR TRAINING
-# 2D (ADAPTED to 10 channels)
-class Net2D(nn.Module): # 45%/8 with 20e/0.7d (3L32), 49%/5-6 with 15e/0.8 (2L64)
+# MODEL + SUPPORT FUNCTIONS FOR TRAINING
+# 2D
+class Net2D(nn.Module):
 	def __init__(self):
 		super().__init__()
 		self.conv1 = nn.Conv2d(8, 16, 5, 1, 1)
-		self.conv2 = nn.Conv2d(16, 32, 5, 1, 1) # increase output fetures
+		self.conv2 = nn.Conv2d(16, 32, 5, 1, 1)
 		self.conv3 = nn.Conv2d(32, 64, 5, 1, 1)
-		#self.conv4 = nn.Conv2d(64, 128, 5, 1, 1)
 		self.drop = nn.Dropout(p=0.8)
 		self.drop1 = nn.Dropout(p=0.8)
 		#---- trying to find out what the input shape to fc1 is ----
-		#running random tensor of appropriate shape through the conv layers
-		#and catching the output
+		# running random tensor of appropriate shape through the conv layers
+		# and catching the output
 		x = torch.randn(8,100,100).view(-1, 8, 100, 100)
 		self._to_linear = None
 		self.convs(x)
@@ -161,21 +153,20 @@ class Net2D(nn.Module): # 45%/8 with 20e/0.7d (3L32), 49%/5-6 with 15e/0.8 (2L64
 		x = self.fc2(x) #output layer therefore no activation
 		return x
 
-#batch and epochs
+# Batch and epochs
 BATCH_SIZE = 128
-EPOCHS = 10 # 15 is best
+EPOCHS = 10
 
-#this trains the model
+# This trains the model
 def training(X_train, y_train):
 	net.train()
 	train_batch_loss = []
 	train_correct = 0
 	train_total = 0
-	for i in range(0, len(X_train), BATCH_SIZE): #(start, stop, step)
-		#print(i, i+BATCH_SIZE)
+	for i in range(0, len(X_train), BATCH_SIZE):
 		X_train_batch = X_train[i:i+BATCH_SIZE].view(-1, 8, 100, 100)
 		y_train_batch = y_train[i:i+BATCH_SIZE]
-		# fitment (need to zero the gradients)
+		# fitment (zeroing the gradients)
 		optimizer.zero_grad()
 		train_outputs = net(X_train_batch)
 		for j, k in zip(train_outputs, y_train_batch):
@@ -193,7 +184,7 @@ def training(X_train, y_train):
 	
 	return train_loss_epoch, train_acc_total
 
-#this tests the model (dev/final_test)
+# This tests the model (dev/final_test)
 def testing(X, y, final_test=False):
 	net.eval()
 	correct = 0
@@ -213,15 +204,15 @@ def testing(X, y, final_test=False):
 				if torch.argmax(j) == k:
 					correct += 1
 				total += 1
-	loss_epoch = round(float(np.mean(batch_loss)),4) #over all BATCHES
-	acc_total = round(correct/total, 4) #over all FILES
+	loss_epoch = round(float(np.mean(batch_loss)),4) # over all BATCHES
+	acc_total = round(correct/total, 4) # over all FILES
 	
 	if final_test:
 		return torch.cat(final_test_predictions), acc_total
 	else:
 		return loss_epoch, acc_total
 
-#insight into the data/predictions
+# Provides insights into the data/predictions
 def insight(actual, pred):
 	total = 0
 	actual_dict = {0:0, 1:0, 2:0, 3:0}
@@ -247,7 +238,7 @@ def insight(actual, pred):
 				else:
 						print(i, '\t', correct_dict[i], '\t', round(correct_dict[i]/actual_dict[i]*100, 4), '%')
 
-#6-FOLD CROSS VALIDATION
+# 6-FOLD CROSS VALIDATION
 statistics = {}
 accuracy_of_k_fold = []
 F1u_of_k_fold = []
@@ -274,7 +265,7 @@ for i in range(len(l)):
 			"dev__total": len(y_dev), "dev__dist": c_d.tolist(), 
 			"final_test__total": len(y_final_test), "final_test__dist": c_f_t.tolist()}
 	
-	#converting labels and class_weights to tensors
+	# Converting labels and class_weights to tensors
 	y_train = torch.LongTensor(y_train) #.cuda() #if no randperm
 	y_dev = torch.LongTensor(y_dev).cuda()
 	y_final_test = torch.LongTensor(y_final_test).cuda()
@@ -283,7 +274,7 @@ for i in range(len(l)):
 	X_dev = X_dev.cuda()
 	X_final_test = X_final_test.cuda()
 	
-	#random permutation
+	# Performing random permutation
 	perm_ind = torch.randperm(len(y_train))
 	X_train = X_train[perm_ind].cuda()
 	y_train = y_train[perm_ind].cuda()
@@ -293,28 +284,24 @@ for i in range(len(l)):
 	print(f' X_final_test shape is: {X_final_test.shape} y_final_test length is: {len(y_final_test)}')
 	
 	#-----------TRAINING STEP--------------
-	net = Net2D().cuda() #reinitializing the NN for the new fold (in order to get rid of the learned parameters)
+	net = Net2D().cuda() # reinitializing the NN for the new fold (in order to get rid of the learned parameters)
 	
 	optimizer = optim.Adam(net.parameters(), lr=0.0001)
 	loss_function = nn.CrossEntropyLoss(weight=class_weights) #THIS ONE is correct
 	
 	fold = {"general": general, "train_loss_fold": [], "train_acc_fold": [], "dev_loss_fold": [], "dev_acc_fold": []}
 	for epoch in range(EPOCHS):
-		#training
+		# Training
 		train_loss_epoch, train_acc_epoch = training(X_train, y_train)
 		fold["train_loss_fold"].append(train_loss_epoch)
 		fold["train_acc_fold"].append(train_acc_epoch)
-		#train_loss_fold = torch.cat((train_loss_fold, torch.Tensor([train_loss_epoch])))
-		#train_acc_fold = torch.cat((train_acc_fold, torch.Tensor([train_acc_epoch])))
-		#evaluation on DEV
+		# Evaluation on DEV
 		dev_loss_epoch, dev_acc_epoch = testing(X_dev, y_dev)
 		fold["dev_loss_fold"].append(dev_loss_epoch)
 		fold["dev_acc_fold"].append(dev_acc_epoch)
-		#dev_loss_fold =  torch.cat((dev_loss_fold, torch.Tensor([dev_loss_epoch])))
-		#dev_acc_fold = torch.cat((dev_acc_fold, torch.Tensor([dev_acc_epoch])))
 		print(f'loss: {train_loss_epoch} {dev_loss_epoch} acc: {train_acc_epoch} {dev_acc_epoch}')
 	
-	#evaluation on FINAL_TEST
+	# Evaluation on FINAL_TEST
 	final_test_predictions, final_test_acc_total = testing(X_final_test, y_final_test, final_test=True)
 	fold["ACC"] = final_test_acc_total
 	accuracy_of_k_fold.append(final_test_acc_total)
@@ -337,15 +324,13 @@ for i in range(len(l)):
 	print(final_test_predictions[:20])
 	insight(y_final_test, final_test_predictions)
 	statistics[i] = fold
-	#print(fold)
 	print('\n')
 
 statistics["total_ACC"] = round(np.mean(accuracy_of_k_fold),4)
 statistics["total_F1u"] = round(np.mean(F1u_of_k_fold),4)
 statistics["toal_F1w"] = round(np.mean(F1w_of_k_fold),4)
 statistics["batch_size"] = BATCH_SIZE 
-statistics["epochs"] = EPOCHS 
-#print(statistics)
+statistics["epochs"] = EPOCHS
 
 print(f'AVERAGE ACCURACY OVER FOLDS IS: {round(np.mean(accuracy_of_k_fold),4)}%')
 print(f'AVERAGE F1u OVER FOLDS IS: {round(np.mean(F1u_of_k_fold),4)}')
@@ -353,7 +338,5 @@ print(f'AVERAGE F1w OVER FOLDS IS: {round(np.mean(F1w_of_k_fold),4)}')
 
 aff = input("store the data (y/n): ")
 if aff == "y":
-	#with open('stats_mm_'+str(args["label"])+'.json', 'w') as f:
-		#json.dump(statistics, f)
 	with open('stats_video_'+args["label"]+'_t'+'.json', 'w', encoding='utf-8') as f:
 		json.dump(statistics, f, ensure_ascii=False, indent=2)
