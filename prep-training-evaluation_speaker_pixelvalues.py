@@ -21,10 +21,10 @@ parser.add_argument("-l", "--label", required=True,
 	help = "type of label to be used (LABEL or ACTIVATION or VALENCE")
 args = vars(parser.parse_args())
 
-# Loading the pandas dataset
+# Loading pandas dataset
 df = pd.read_pickle(args["data"])
 
-# Converting continuous labels (activation/valence) into classes
+# Converts continuous labels (activation/valence) into discrete classes
 def map_to_bin(cont_label):
 	if cont_label <= 2.5:
 		return 0.0
@@ -40,7 +40,7 @@ for i in enumerate(df.index):
 # Converting emotion labels into classes
 df["LABEL"].replace({'anger': 0, 'happiness': 1, 'neutral': 2, 'sadness': 3}, inplace=True)
 
-# Splitting data according to the 6 original sessions (given the speaker id)
+# Splits data according to the 6 original sessions (given the speaker id)
 def create_sessions(df):
 	# Features
 	f_1 = []
@@ -101,7 +101,7 @@ def standardize(features, mean, std):
 
 	return torch.Tensor(features)
 
-# Splitting validation set into dev and test (least populated class needs to have AT LEAST 2 MEMBERS)
+# Splits validation set into dev and test (least populated class needs to have AT LEAST 2 MEMBERS)
 def SSS(X_val, y_val):
 	sss = StratifiedShuffleSplit(n_splits=1, test_size=0.5)
 	sss.get_n_splits(X_val, y_val)
@@ -128,7 +128,7 @@ class Net2D(nn.Module):
 		self._to_linear = None
 		self.convs(x)
 		#-----------------------------------------------------------
-		self.fc1 = nn.Linear(self._to_linear, 128) #128
+		self.fc1 = nn.Linear(self._to_linear, 128)
 		self.fc2 = nn.Linear(128, 4)
 		
 	def convs(self, x):
@@ -142,14 +142,14 @@ class Net2D(nn.Module):
 		return x
 		
 	def forward(self, x):
-		x = self.convs(x) #passing through convolutional layers
-		x = x.view(-1, self._to_linear) #flattening
+		x = self.convs(x) # passing through convolutional layers
+		x = x.view(-1, self._to_linear) # flattening
 		x = F.relu(self.fc1(x))
 		x = self.drop1(x)
-		x = self.fc2(x) #output layer therefore no activation
+		x = self.fc2(x) # output layer therefore no activation
 		return x
 
-# Batch and epochs
+# Batch size and nr of epochs
 BATCH_SIZE = 128
 EPOCHS = 10
 
