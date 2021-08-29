@@ -26,11 +26,11 @@ df = pd.read_pickle(args["data"])
 
 # Converting continuous labels (activation/valence) into classes
 def map_to_bin(cont_label):
-	if cont_label <= 2.5:  # orig. 2.0
+	if cont_label <= 2.5:
 		return 0.0
 	elif 2.5 < cont_label < 3.5:
 		return 1.0
-	elif cont_label >= 3.5:  # orig. 4.0
+	elif cont_label >= 3.5:
 		return 2.0
 
 for i in enumerate(df.index):
@@ -42,14 +42,14 @@ df["LABEL"].replace({'anger': 0, 'happiness': 1, 'neutral': 2, 'sadness': 3}, in
 
 # Splitting data according to the 6 original sessions (given the speaker id)
 def create_sessions(df):
-	# features
+	# Features
 	f_1 = []
 	f_2 = []
 	f_3 = []
 	f_4 = []
 	f_5 = []
 	f_6 = []
-	# labels (category/activation/valnece depending on the parsed argument)
+	# Labels (category/activation/valnece depending on the parsed argument)
 	l_1 = []
 	l_2 = []
 	l_3 = []
@@ -58,7 +58,7 @@ def create_sessions(df):
 	l_6 = []
 	
 	for i in df.index:
-		session = i[17:19] #contains session nr
+		session = i[17:19] # contains session nr
 		if session == "01":
 			f_1.append(df.loc[i,"FEATURES"])
 			l_1.append(df.loc[i,args["label"]])
@@ -86,7 +86,7 @@ f, l = create_sessions(df)
 
 # SUPPORT FUNCTIONS FOR THE K-FOLD-SPLIT (SESSION-WISE-SPLIT)
 
-# Standardization (requires an np.array as input)
+# Standardization (mean=0; std=1)
 def standardize(features, mean, std):
 	start_time = time.time()
 	features = (features - mean) / (std + 0.0000001) # adding epsilon to avoid errors (e.g. division by 0)
@@ -133,15 +133,11 @@ class Net2D(nn.Module):
 		
 	def convs(self, x):
 		x = F.max_pool2d(F.relu(self.conv1(x)), (2,2), 2)
-		#x = self.drop(x)
 		x = F.max_pool2d(F.relu(self.conv2(x)), (2,2), 2)
-		#x = self.drop(x)
 		x = F.max_pool2d(F.relu(self.conv3(x)), (2,2), 2)
 		x = self.drop(x)
-		#x = F.max_pool2d(F.relu(self.conv4(x)), (2,2), 2)
-		#x = self.drop(x)
 		if self._to_linear is None:
-			self._to_linear = np.prod(x[0].shape) #x[0].shape[0]*x[0].shape[1]*x[0].shape[2]
+			self._to_linear = np.prod(x[0].shape) # catching the output (x[0].shape[0]*x[0].shape[1]*x[0].shape[2])
 			print(self._to_linear)
 		return x
 		
@@ -166,7 +162,7 @@ def training(X_train, y_train):
 	for i in range(0, len(X_train), BATCH_SIZE):
 		X_train_batch = X_train[i:i+BATCH_SIZE].view(-1, 8, 100, 100)
 		y_train_batch = y_train[i:i+BATCH_SIZE]
-		# fitment (zeroing the gradients)
+		# Fitment (zeroing the gradients)
 		optimizer.zero_grad()
 		train_outputs = net(X_train_batch)
 		for j, k in zip(train_outputs, y_train_batch):
@@ -251,12 +247,12 @@ for i in range(len(l)):
 	print(f'CLASS WEIGHTS: {class_weights}')
 	features_mean, features_std = np.mean(X_train), np.std(X_train)
 	X_train = standardize(X_train, features_mean, features_std) #standardizing the features of the session-combinations
-	# standardizing TEST with MEAN & STD of TRAIN
+	# Standardizing TEST with MEAN & STD of TRAIN
 	X_test = standardize(X_test, features_mean, features_std)
-	#splitting TEST into DEV and FINAL_TEST
+	# Splitting TEST into DEV and FINAL_TEST
 	X_dev, X_final_test, y_dev, y_final_test = SSS(X_test, y_test)
 	
-	#gathering general information
+	# Gathering general information
 	l_t, c_t = np.unique(y_train, return_counts=True)
 	l_d , c_d = np.unique(y_dev, return_counts=True)
 	l_f_t, c_f_t = np.unique(y_final_test, return_counts=True)
