@@ -16,7 +16,6 @@ Neutral | 3,458 | 44.59%
 Sad | 885 | 11.41%
 
 ## Feature Extraction
-* Using pixelvalues of raw face detections as features
 * Using the OpenCV library to read out the individual video frames
 * Converting to greyscale and downscaling the image as far as possible to
 still be able to run face detections (goal: reducing processing time)
