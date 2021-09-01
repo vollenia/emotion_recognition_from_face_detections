@@ -19,10 +19,10 @@ Sad | 885 | 11.41%
 
 ## Feature Extraction
 * Pixelvalues of raw face detections as features
-* Using the OpenCV library to read the individual video frames
+* Using the OpenCV library to read out the individual video frames
 * Converting to greyscale and downscaling the image as far as possible to
 still be able to run face detections (goal: reducing processing time)
-* Applying the HOG frontal face detector from the Dlib toolkit
+* Applying HOG frontal face detector from the Dlib toolkit
 * Accumulating a targeted number of frames over a recording with an
 adaptive sampling interval
 * Filtering out recordings for which the targeted number of frames could
@@ -30,9 +30,8 @@ not be accumulated
 * Combining features and labels into a pandas dataframe
 
 ## Preprocessing/Training/Evaluation
-* Padding/cutting to a universal shape (mean nr of frames + std)
 * Normalizing via Z-Score (mean=0; std=1)
-* Using a CNN style architecture adapted to time continuous data. Takes a convolution over all features of one or several time steps resulting in a one-dimensional movement of the kernel which corresponds to the movement along the time dimension
+* Using a CNN architecture wahere the selected frames from one recording are passed in as channels
 * Performing training/evaluation in a 6-fold cross validation approach
 
 ## Model Architecture
