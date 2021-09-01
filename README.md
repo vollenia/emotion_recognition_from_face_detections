@@ -20,7 +20,7 @@ Sad | 885 | 11.41%
 * Using the OpenCV library to read out the individual video frames
 * Converting to greyscale and downscaling the image as far as possible to
 still be able to run face detections (goal: reducing processing time)
-* Applying HOG frontal face detector from the Dlib toolkit
+* Applying HOG frontal face detector from the Dlib toolkit (resulting rectangle: 100x100px)
 * Accumulating a targeted number of frames over a recording with an
 adaptive sampling interval
 * Filtering out recordings for which the targeted number of frames could
