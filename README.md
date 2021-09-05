@@ -1,7 +1,7 @@
 # emotion_recognition_from_face_detections
 
 ## Summary
-The goal of this project was to train and evaluate a model that would be able to automatically recognize one of **4 emotion classes** _(Angry, Happy, Neutral, Sad)_ in a video signal by inspecting the face of a speaker. This was achieved by using face detections from a pre-trained face detector.
+The goal of this project was to train and evaluate a model that would be able to automatically recognize one of **4 emotion classes** _(Angry, Happy, Neutral, Sad)_ from a video signal by inspecting the face of a speaker. This was achieved by using face detections from a pre-trained face detector.
 In addition to the **emotion class model** auxiliary models for **activation** and **valence** were trained.
 
 ## Data
