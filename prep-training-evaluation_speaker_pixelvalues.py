@@ -114,7 +114,7 @@ parser.add_argument("-l", "--label", required=True,
 	help = "type of label to be used (LABEL or ACTIVATION or VALENCE")
 args = vars(parser.parse_args())
 
-# Converts continuous labels (activation/valence) into discrete classes
+# Converting continuous labels (activation/valence) into discrete classes
 def map_to_bin(cont_label):
 	if cont_label <= 2.5:
 		return 0.0
@@ -221,7 +221,7 @@ if __name__ == '__main__':
 	# Loading pandas dataset
 	df = pd.read_pickle(args["data"])
 
-	# Converts continuous labels (activation/valence) into discrete classes
+	# Converting continuous labels (activation/valence) into discrete classes
 	for i in enumerate(df.index):
 		df.at[i[1], 'ACTIVATION'] = map_to_bin(df['ACTIVATION'][i[0]])
 		df.at[i[1], 'VALENCE'] = map_to_bin(df['VALENCE'][i[0]])
