@@ -20,12 +20,6 @@ parser.add_argument("-f", "--frames", required=True, type=int,
 	help = "Nr of frames to be extracted")
 args = vars(parser.parse_args())
 
-# Creating a list with paths from directory
-list_of_files = sorted([os.path.join(args["data"], i) for i in os.listdir(args["data"])])
-
-# Defining face detector
-detector = dlib.get_frontal_face_detector()
-
 # Extracting features & reducing the frames
 # Target frames
 def frame_selection(frames, nr):
@@ -33,9 +27,9 @@ def frame_selection(frames, nr):
 	
 	return vip_frames # returns a 3D array
 
-data = {}       
 def process_video(files, crop=100):
 	start_time = time.time()
+	data = {}
 	for file_path in files:
 		cap = FileVideoStream(file_path).start()
 		frames = []
@@ -57,24 +51,25 @@ def process_video(files, crop=100):
 						print(f'crop/resize failed for {file_path} for bounding box with coordinates {x1, y1, x2, y2}')
 					else:
 						frames.append(crop_img)
-			except AttributeError:
+			except AttributeError: # final frame is empty
+				# this issue can be resolved by changing FileVideoStream.py
 				pass
 		cap.stop()
 		if len(frames) >= args["frames"]: # checks if enough frames were accumulated
+			# note: use '\\' to spit if running on Windows
 			data[file_path.split('/')[-1].replace('.avi', '')] = frame_selection(frames, args["frames"])# nr of target frames
 		else:
 			data["Y"+file_path.split('/')[-1].replace('.avi', '')] = None
 	end_time = time.time()
 	duration = end_time - start_time
 	print(f'video processing took {duration} seconds')
-
-process_video(list_of_files, 100)
+	return data
 
 # Extracting labels
-ref = ["anger", "happiness", "neutral", "sadness"]
-labels = {}
 def get_labels(file):
 	start_time = time.time()
+	ref = ["anger", "happiness", "neutral", "sadness"]
+	labels = {}
 	nr_l = 0
 	nr_bl = 0
 	with open(file, 'r') as f:
@@ -93,13 +88,12 @@ def get_labels(file):
 	end_time = time.time()
 	duration = end_time - start_time
 	print(f'label processing of {nr_l} line(s) ({nr_bl} bad labels detected) took {duration} seconds')
-
-get_labels(args["labels"])
+	return labels
 
 # Creating dataset as dictionary
-dataset_d = {}
 def create_dataset(labels, data):
 	start_time = time.time()
+	dataset_d = {}
 	nr_l = 0
 	nr_bl = 0
 	for x, y, i, j  in zip(labels.keys(), data.keys(), labels.values(), data.values()):
@@ -115,10 +109,31 @@ def create_dataset(labels, data):
 	end_time = time.time()
 	duration = end_time - start_time
 	print(f'combining of {nr_l} line(s) ({nr_bl} lines filtered) took {duration} seconds')
-create_dataset(labels, data)
+	return dataset_d
 
-# Creating pandas dataframe from dictionary
-dataset_df = pd.DataFrame.from_dict(dataset_d, orient='index')
+if __name__ == '__main__':
+	# Creating a list with paths from directory
+	list_of_files = sorted([os.path.join(args["data"], i) for i in os.listdir(args["data"])])
 
-# Storing the dataframe
-dataset_df.to_pickle("PATH"+"df_hog_fast"+str(args["frames"])+".pkl")
+	# Defining face detector
+	detector = dlib.get_frontal_face_detector()
+
+	# Extracting features & reducing the frames
+	data = process_video(list_of_files, 100)
+
+	# Extracting labels
+	labels = get_labels(args["labels"])
+
+	# Creating dataset as dictionary
+	dataset_d = create_dataset(labels, data)
+	print(f'original length of dataset was: {len(data)} VS new length of dataset is: {len(dataset_d)}')
+
+	# Creating pandas dataframe from dictionary
+	dataset_df = pd.DataFrame.from_dict(dataset_d, orient='index')
+
+	# Storing the dataframe
+	dataset_df.to_pickle("df_hog_fast"+str(args["frames"])+".pkl")
+
+
+
+
